@@ -1,0 +1,49 @@
+name: Trigger auto deployment for presentonapp
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/presentonapp-AutoDeployTrigger-e5cea60b-3d41-4055-8f25-e55114cf62d6.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.PRESENTONAPP_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.PRESENTONAPP_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.PRESENTONAPP_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: presentonreg.azurecr.io
+          registryUsername: ${{ secrets.PRESENTONAPP_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.PRESENTONAPP_REGISTRY_PASSWORD }}
+          containerAppName: presentonapp
+          resourceGroup: PresentonRG
+          imageToBuild: presentonreg.azurecr.io/presentonapp:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
